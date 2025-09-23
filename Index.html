@@ -1,1 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Firmas con Fibron Verde - Auto Confirm</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    body, html { margin:0; padding:0; overflow:hidden; background:#111; }
+    canvas { display:block; }
+  </style>
+</head>
+<body>
+<script>
+let firmas = [];
+let firmaActual = null;
+const colorFluor = '#39ff14';
+let ultimaActividad = 0; // registro de última acción
 
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  background(20);
+  strokeJoin(BEVEL); // esquinas menos redondeadas
+}
+
+function draw() {
+  background(20);
+
+  // Dibujar firmas confirmadas
+  for (let f of firmas) {
+    f.update();
+    f.show();
+  }
+
+  // Dibujar firma en construcción
+  if (firmaActual) {
+    stroke(colorFluor);
+    strokeWeight(12);
+    noFill();
+
+    for (let s of firmaActual.strokes) {
+      beginShape();
+      for (let p of s) {
+        vertex(p.x, p.y);
+      }
+      endShape();
+    }
+
+    // Confirmar firma si pasan 10s sin actividad
+    if (millis() - ultimaActividad > 3000) {
+      confirmarFirma();
+    }
+  }
+}
+
+function mousePressed() {
+  if (!firmaActual) {
+    firmaActual = {strokes: []};
+  }
+  firmaActual.strokes.push([]);
+  ultimaActividad = millis(); // actualizar actividad
+}
+
+function mouseDragged() {
+  if (firmaActual) {
+    let s = firmaActual.strokes[firmaActual.strokes.length-1];
+    // Agregar leve ruido al punto para imperfección
+    s.push({
+      x: mouseX + random(-0.8, 0.8),
+      y: mouseY + random(-0.8, 0.8)
+    });
+    ultimaActividad = millis(); // actualizar actividad
+  }
+}
+
+function keyPressed() {
+  if (key === ' ') {
+    firmas = [];
+  }
+}
+
+// Función para confirmar firma
+function confirmarFirma() {
+  if (!firmaActual) return;
+
+  // Calcular centro aproximado
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let s of firmaActual.strokes) {
+    for (let p of s) {
+      minX = min(minX, p.x);
+      minY = min(minY, p.y);
+      maxX = max(maxX, p.x);
+      maxY = max(maxY, p.y);
+    }
+  }
+  let centro = {x: (minX + maxX)/2, y: (minY + maxY)/2};
+
+  // Guardar firma
+  firmas.push(new Firma(firmaActual.strokes, centro));
+  firmaActual = null;
+}
+
+// Ajustar tamaño de lienzo si cambia la ventana
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+// Clase Firma
+class Firma {
+  constructor(strokes, centro) {
+    this.strokes = strokes;
+    this.color = colorFluor;
+    this.t = millis();
+    this.scale = 1;
+    this.centro = centro;
+  }
+
+  update() {
+    let tiempo = millis() - this.t;
+
+    // A los 5s empieza a reducir hasta la mitad
+    if (tiempo > 3000 && this.scale > 0.5) {
+      this.scale -= 0.005;
+      if (this.scale < 0.5) this.scale = 0.5;
+    }
+  }
+
+  show() {
+    push();
+    translate(this.centro.x, this.centro.y);
+    scale(this.scale);
+    translate(-this.centro.x, -this.centro.y);
+
+    stroke(this.color);
+    strokeWeight(12 * this.scale);
+    noFill();
+
+    for (let s of this.strokes) {
+      beginShape();
+      for (let p of s) {
+        vertex(p.x, p.y);
+      }
+      endShape();
+    }
+
+    pop();
+  }
+}
+</script>
+</body>
+  </html>
